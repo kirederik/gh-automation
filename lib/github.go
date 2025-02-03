@@ -141,9 +141,9 @@ func (g *GithubClient) ProjectDetails(organization string, projectNumber int) (*
 							ID            githubv4.String
 							Name          githubv4.String
 							Configuration struct {
-								Iterations struct {
+								Iterations []struct {
 									ID        githubv4.String
-									StartDate githubv4.DateTime
+									StartDate githubv4.String
 								}
 							}
 						} `graphql:"... on ProjectV2IterationField"`

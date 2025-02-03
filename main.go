@@ -157,7 +157,7 @@ func main() {
 	var err error
 	projectDetails, err = ghClient.ProjectDetails("syntasso", 4)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("error to query project details", err)
 	}
 	fmt.Println("Project ID: ", projectDetails.ID)
 
