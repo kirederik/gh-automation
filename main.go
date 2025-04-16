@@ -37,6 +37,19 @@ type ProjectV2Item struct {
 	ArchivedAt    string       `json:"archived_at"`
 }
 
+type PullRequest struct {
+	ID     int64  `json:"id"`
+	NodeID string `json:"node_id"`
+	Number int64  `json:"number"`
+	State  string `json:"state"`
+}
+
+type Repository struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	FullName string `json:"full_name"`
+}
+
 type ChangesetItem map[string]interface{}
 type Changeset map[string]ChangesetItem
 
@@ -44,13 +57,14 @@ type GithubIncomingEvent struct {
 	Event   string       `json:"event"`
 	Payload EventPayload `json:"payload"`
 }
-
 type EventPayload struct {
-	Action        string        `json:"action"`
-	ProjectV2Item ProjectV2Item `json:"projects_v2_item"`
-	Changes       Changeset     `json:"changes"`
-	Organization  GithubEntity  `json:"organization"`
-	Sender        GithubEntity  `json:"sender"`
+	Action        string         `json:"action"`
+	ProjectV2Item *ProjectV2Item `json:"projects_v2_item,omitempty"`
+	Changes       Changeset      `json:"changes"`
+	Organization  GithubEntity   `json:"organization"`
+	Sender        GithubEntity   `json:"sender"`
+	PullRequest   *PullRequest   `json:"pull_request,omitempty"`
+	Repository    *Repository    `json:"repository,omitempty"`
 }
 
 const (
@@ -83,6 +97,30 @@ func IncomingRequestHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Request body: ", string(body[:100]))
 	fmt.Println("Event action: ", event.Action)
 
+	if event.ProjectV2Item != nil {
+		handleProjectV2Item(event)
+	}
+	if event.PullRequest != nil {
+		handlePullRequest(event)
+	}
+
+	w.Write([]byte("OK"))
+}
+
+func handlePullRequest(event EventPayload) {
+	fmt.Printf("Pull request event, adding PR %s#%d to project\n", event.Repository.FullName, event.PullRequest.Number)
+	projectID := projectDetails.ID
+	if event.Action == "created" {
+		itemID, err := ghClient.AddPullRequestToProject(projectID, event.PullRequest.NodeID)
+		if err != nil {
+			log.Printf("Failed to add PR to project: %v", err)
+			return
+		}
+		fmt.Printf("Added PR to project as item: %s\n", itemID)
+	}
+}
+
+func handleProjectV2Item(event EventPayload) {
 	switch event.Action {
 	case EditedAction:
 		fmt.Println("Project item edited")
@@ -146,8 +184,6 @@ func IncomingRequestHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
-	w.Write([]byte("OK"))
 }
 
 func main() {

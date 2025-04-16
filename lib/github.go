@@ -233,3 +233,25 @@ func (g *GithubClient) FieldIDs(projectID string) (map[string]string, error) {
 	}
 	return fieldIDs, err
 }
+
+func (g *GithubClient) AddPullRequestToProject(projectID string, prNodeID string) (string, error) {
+	var mutation struct {
+		AddProjectV2ItemById struct {
+			Item struct {
+				ID string `graphql:"id"`
+			} `graphql:"item"`
+		} `graphql:"addProjectV2ItemById(input: $input)"`
+	}
+	input := githubv4.AddProjectV2ItemByIdInput{
+		ProjectID: githubv4.ID(projectID),
+		ContentID: githubv4.ID(prNodeID),
+	}
+
+	err := g.client.Mutate(g.ctx, &mutation, input, nil)
+	if err != nil {
+		fmt.Printf("[DEBUG] Mutation error: %+v\n", err)
+		return "", err
+	}
+	fmt.Printf("[DEBUG] Mutation result: %+v\n", mutation)
+	return mutation.AddProjectV2ItemById.Item.ID, nil
+}
