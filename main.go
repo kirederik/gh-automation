@@ -110,7 +110,7 @@ func IncomingRequestHandler(w http.ResponseWriter, r *http.Request) {
 func handlePullRequest(event EventPayload) {
 	fmt.Printf("Pull request event, adding PR %s#%d to project\n", event.Repository.FullName, event.PullRequest.Number)
 	projectID := projectDetails.ID
-	if event.Action == "created" {
+	if event.Action == "opened" {
 		itemID, err := ghClient.AddPullRequestToProject(projectID, event.PullRequest.NodeID)
 		if err != nil {
 			log.Printf("Failed to add PR to project: %v", err)
