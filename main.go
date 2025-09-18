@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -122,7 +123,7 @@ func IncomingRequestHandler(w http.ResponseWriter, r *http.Request) {
 func handleIssue(event EventPayload) {
 	fmt.Printf("Issue event: %s, issue %s#%d\n", event.Action, event.Repository.FullName, event.Issue.Number)
 	projectID := projectDetails.ID
-	if event.Action == "opened" {
+	if slices.Contains([]string{"edited", "reopened", "opened", "created"}, event.Action) {
 		fmt.Printf("Adding issue %s#%d to project\n", event.Repository.FullName, event.Issue.Number)
 		itemID, err := ghClient.AddNodeToProject(projectID, event.Issue.NodeID)
 		if err != nil {
