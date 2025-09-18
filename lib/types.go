@@ -30,6 +30,12 @@ func (tm *TypeMapping) GetTypeFromTitle(title string) (string, bool) {
 
 	prefix := strings.TrimSpace(title[:colonIndex])
 
+	if parenIndex := strings.Index(prefix, "("); parenIndex != -1 {
+		prefix = strings.TrimSpace(prefix[:parenIndex])
+	}
+
+	prefix = strings.ToLower(prefix)
+
 	if typeName, exists := tm.PrefixToType[prefix]; exists {
 		return typeName, true
 	}
