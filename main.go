@@ -49,6 +49,7 @@ type Issue struct {
 	NodeID string `json:"node_id"`
 	Number int64  `json:"number"`
 	State  string `json:"state"`
+	Title  string `json:"title"`
 }
 
 type Repository struct {
@@ -129,7 +130,36 @@ func handleIssue(event EventPayload) {
 			return
 		}
 		fmt.Printf("Added issue to project as item: %s\n", itemID)
+
+		assignTypeToIssue(event.Issue.Title, event.Issue.NodeID)
 	}
+}
+
+func assignTypeToIssue(title, issueNodeID string) {
+	fmt.Printf("Attempting to assign type to issue with title: %q\n", title)
+
+	typeName, found := projectDetails.TypeMapping.GetTypeFromTitle(title)
+	if !found {
+		fmt.Printf("No matching type found for title: %s\n", title)
+		return
+	}
+
+	fmt.Printf("Detected type: %s\n", typeName)
+
+	issueTypeID, exists := projectDetails.TypeMapping.GetTypeID(typeName)
+	if !exists {
+		fmt.Printf("Type '%s' not found in organization issue types\n", typeName)
+		return
+	}
+
+	// Update the issue with the detected type
+	err := ghClient.UpdateIssueType(issueNodeID, issueTypeID)
+	if err != nil {
+		log.Printf("Failed to update issue type: %v", err)
+		return
+	}
+
+	fmt.Printf("Successfully assigned type '%s' to issue\n", typeName)
 }
 
 func handlePullRequest(event EventPayload) {

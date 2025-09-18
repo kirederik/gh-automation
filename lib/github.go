@@ -19,6 +19,7 @@ type ProjectDetails struct {
 	ID           string
 	FieldsByID   map[string]interface{}
 	FieldsByName map[string]interface{}
+	TypeMapping  *TypeMapping
 
 	// SingleSelectFields map[string]SingleSelectField
 	// Fields             map[string]Node
@@ -35,6 +36,17 @@ type Field struct {
 	Name string
 }
 
+type UpdateIssueIssueTypeInput struct {
+	IssueID     githubv4.ID  `json:"issueId"`
+	IssueTypeID *githubv4.ID `json:"issueTypeId,omitempty"`
+}
+
+type ProjectItem struct {
+	Status    string
+	StartDate string
+	EndDate   string
+}
+
 func NewGithubClient() *GithubClient {
 	src := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: os.Getenv("GITHUB_TOKEN")},
@@ -46,12 +58,6 @@ func NewGithubClient() *GithubClient {
 		client: client,
 		ctx:    context.Background(),
 	}
-}
-
-type ProjectItem struct {
-	Status    string
-	StartDate string
-	EndDate   string
 }
 
 func (g *GithubClient) UpdateProjectItem(projectID, itemID, fieldID string, value githubv4.ProjectV2FieldValue) error {
@@ -150,6 +156,12 @@ func (g *GithubClient) ProjectDetails(organization string, projectNumber int) (*
 					} `graphql:"nodes"`
 				} `graphql:"fields(first: 100)"`
 			} `graphql:"projectV2(number: $projectNumber)"`
+			IssueTypes struct {
+				Nodes []struct {
+					ID   githubv4.String
+					Name githubv4.String
+				} `graphql:"nodes"`
+			} `graphql:"issueTypes(first: 100)"`
 		} `graphql:"organization(login: $organization)"`
 	}
 	variables := map[string]interface{}{
@@ -165,6 +177,7 @@ func (g *GithubClient) ProjectDetails(organization string, projectNumber int) (*
 	projectDetails.ID = string(orgInfoQuery.Organization.ProjectV2.ID)
 	projectDetails.FieldsByName = make(map[string]interface{})
 	projectDetails.FieldsByID = make(map[string]interface{})
+	projectDetails.TypeMapping = NewTypeMapping()
 
 	for _, field := range orgInfoQuery.Organization.ProjectV2.Fields.Nodes {
 		var fieldValue interface{}
@@ -201,6 +214,13 @@ func (g *GithubClient) ProjectDetails(organization string, projectNumber int) (*
 		projectDetails.FieldsByName[fieldName] = fieldValue
 		projectDetails.FieldsByID[fieldID] = fieldValue
 	}
+
+	for _, issueType := range orgInfoQuery.Organization.IssueTypes.Nodes {
+		issueTypeName := string(issueType.Name)
+		issueTypeID := string(issueType.ID)
+		projectDetails.TypeMapping.SetTypeID(issueTypeName, issueTypeID)
+	}
+
 	return projectDetails, nil
 
 }
@@ -254,4 +274,28 @@ func (g *GithubClient) AddNodeToProject(projectID string, nodeID string) (string
 	}
 	fmt.Printf("[DEBUG] Mutation result: %+v\n", mutation)
 	return mutation.AddProjectV2ItemById.Item.ID, nil
+}
+
+func (g *GithubClient) UpdateIssueType(issueID, issueTypeID string) error {
+	var mutation struct {
+		UpdateIssueIssueType struct {
+			Issue struct {
+				ID githubv4.String
+			} `graphql:"issue"`
+		} `graphql:"updateIssueIssueType(input: $input)"`
+	}
+
+	input := UpdateIssueIssueTypeInput{
+		IssueID:     githubv4.ID(issueID),
+		IssueTypeID: githubv4.NewID(githubv4.ID(issueTypeID)),
+	}
+
+	err := g.client.Mutate(g.ctx, &mutation, input, nil)
+	if err != nil {
+		fmt.Printf("[DEBUG] Mutation error: %+v\n", err)
+		return err
+	}
+	fmt.Printf("[DEBUG] Mutation result: %+v\n", mutation)
+
+	return nil
 }
