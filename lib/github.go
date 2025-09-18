@@ -234,7 +234,7 @@ func (g *GithubClient) FieldIDs(projectID string) (map[string]string, error) {
 	return fieldIDs, err
 }
 
-func (g *GithubClient) AddPullRequestToProject(projectID string, prNodeID string) (string, error) {
+func (g *GithubClient) AddNodeToProject(projectID string, nodeID string) (string, error) {
 	var mutation struct {
 		AddProjectV2ItemById struct {
 			Item struct {
@@ -244,7 +244,7 @@ func (g *GithubClient) AddPullRequestToProject(projectID string, prNodeID string
 	}
 	input := githubv4.AddProjectV2ItemByIdInput{
 		ProjectID: githubv4.ID(projectID),
-		ContentID: githubv4.ID(prNodeID),
+		ContentID: githubv4.ID(nodeID),
 	}
 
 	err := g.client.Mutate(g.ctx, &mutation, input, nil)

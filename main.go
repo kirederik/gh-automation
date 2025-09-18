@@ -44,6 +44,13 @@ type PullRequest struct {
 	State  string `json:"state"`
 }
 
+type Issue struct {
+	ID     int64  `json:"id"`
+	NodeID string `json:"node_id"`
+	Number int64  `json:"number"`
+	State  string `json:"state"`
+}
+
 type Repository struct {
 	ID       int64  `json:"id"`
 	Name     string `json:"name"`
@@ -64,6 +71,7 @@ type EventPayload struct {
 	Organization  GithubEntity   `json:"organization"`
 	Sender        GithubEntity   `json:"sender"`
 	PullRequest   *PullRequest   `json:"pull_request,omitempty"`
+	Issue         *Issue         `json:"issue,omitempty"`
 	Repository    *Repository    `json:"repository,omitempty"`
 }
 
@@ -103,15 +111,33 @@ func IncomingRequestHandler(w http.ResponseWriter, r *http.Request) {
 	if event.PullRequest != nil {
 		handlePullRequest(event)
 	}
+	if event.Issue != nil {
+		handleIssue(event)
+	}
 
 	w.Write([]byte("OK"))
 }
 
-func handlePullRequest(event EventPayload) {
-	fmt.Printf("Pull request event, adding PR %s#%d to project\n", event.Repository.FullName, event.PullRequest.Number)
+func handleIssue(event EventPayload) {
+	fmt.Printf("Issue event: %s, issue %s#%d\n", event.Action, event.Repository.FullName, event.Issue.Number)
 	projectID := projectDetails.ID
 	if event.Action == "opened" {
-		itemID, err := ghClient.AddPullRequestToProject(projectID, event.PullRequest.NodeID)
+		fmt.Printf("Adding issue %s#%d to project\n", event.Repository.FullName, event.Issue.Number)
+		itemID, err := ghClient.AddNodeToProject(projectID, event.Issue.NodeID)
+		if err != nil {
+			log.Printf("Failed to add issue to project: %v", err)
+			return
+		}
+		fmt.Printf("Added issue to project as item: %s\n", itemID)
+	}
+}
+
+func handlePullRequest(event EventPayload) {
+	fmt.Printf("Pull request event: %s, PR %s#%d\n", event.Action, event.Repository.FullName, event.PullRequest.Number)
+	projectID := projectDetails.ID
+	if event.Action == "opened" {
+		fmt.Printf("Adding PR %s#%d to project\n", event.Repository.FullName, event.PullRequest.Number)
+		itemID, err := ghClient.AddNodeToProject(projectID, event.PullRequest.NodeID)
 		if err != nil {
 			log.Printf("Failed to add PR to project: %v", err)
 			return
