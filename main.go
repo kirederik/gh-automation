@@ -39,10 +39,11 @@ type ProjectV2Item struct {
 }
 
 type PullRequest struct {
-	ID     int64  `json:"id"`
-	NodeID string `json:"node_id"`
-	Number int64  `json:"number"`
-	State  string `json:"state"`
+	ID     int64        `json:"id"`
+	NodeID string       `json:"node_id"`
+	Number int64        `json:"number"`
+	State  string       `json:"state"`
+	User   GithubEntity `json:"user"`
 }
 
 type Issue struct {
@@ -167,6 +168,17 @@ func handlePullRequest(event EventPayload) {
 	fmt.Printf("Pull request event: %s, PR %s#%d\n", event.Action, event.Repository.FullName, event.PullRequest.Number)
 	projectID := projectDetails.ID
 	if event.Action == "opened" {
+		if event.PullRequest.User.Name == "" {
+			log.Printf("PR %s#%d has no author login in payload, skipping assignee update", event.Repository.FullName, event.PullRequest.Number)
+		} else {
+			err := ghClient.AssignPullRequestToUser(event.PullRequest.NodeID, event.PullRequest.User.Name)
+			if err != nil {
+				log.Printf("Failed to assign PR %s#%d to %s: %v", event.Repository.FullName, event.PullRequest.Number, event.PullRequest.User.Name, err)
+			} else {
+				fmt.Printf("Assigned PR %s#%d to %s\n", event.Repository.FullName, event.PullRequest.Number, event.PullRequest.User.Name)
+			}
+		}
+
 		fmt.Printf("Adding PR %s#%d to project\n", event.Repository.FullName, event.PullRequest.Number)
 		itemID, err := ghClient.AddNodeToProject(projectID, event.PullRequest.NodeID)
 		if err != nil {

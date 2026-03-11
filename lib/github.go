@@ -41,6 +41,11 @@ type UpdateIssueIssueTypeInput struct {
 	IssueTypeID *githubv4.ID `json:"issueTypeId,omitempty"`
 }
 
+type AddAssigneesToAssignableInput struct {
+	AssignableID githubv4.ID   `json:"assignableId"`
+	AssigneeIDs  []githubv4.ID `json:"assigneeIds"`
+}
+
 type ProjectItem struct {
 	Status    string
 	StartDate string
@@ -298,4 +303,31 @@ func (g *GithubClient) UpdateIssueType(issueID, issueTypeID string) error {
 	fmt.Printf("[DEBUG] Mutation result: %+v\n", mutation)
 
 	return nil
+}
+
+func (g *GithubClient) AssignPullRequestToUser(pullRequestNodeID, login string) error {
+	var userQuery struct {
+		User struct {
+			ID githubv4.String
+		} `graphql:"user(login: $login)"`
+	}
+	userQueryVars := map[string]interface{}{
+		"login": githubv4.String(login),
+	}
+	if err := g.client.Query(g.ctx, &userQuery, userQueryVars); err != nil {
+		return err
+	}
+
+	var mutation struct {
+		AddAssigneesToAssignable struct {
+			Assignable struct {
+				ID githubv4.String
+			} `graphql:"assignable"`
+		} `graphql:"addAssigneesToAssignable(input: $input)"`
+	}
+	input := AddAssigneesToAssignableInput{
+		AssignableID: githubv4.ID(pullRequestNodeID),
+		AssigneeIDs:  []githubv4.ID{githubv4.ID(userQuery.User.ID)},
+	}
+	return g.client.Mutate(g.ctx, &mutation, input, nil)
 }
