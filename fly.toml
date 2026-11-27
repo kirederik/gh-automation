@@ -12,6 +12,7 @@ primary_region = 'lhr'
 
 [env]
   PORT = '8080'
+  SKIP_REPOS = 'syntasso/testing-git-writer-private,syntasso/backstage-PR-testing-repo,syntasso/chunyi-testing-repo,syntasso/testing-git-store'
 
 [http_service]
   internal_port = 8080
