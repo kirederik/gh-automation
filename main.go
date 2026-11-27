@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"slices"
 	"time"
 
@@ -87,6 +88,7 @@ const (
 var (
 	projectDetails *lib.ProjectDetails
 	ghClient       *lib.GithubClient
+	skipRepos      = lib.ParseSkipList(os.Getenv("SKIP_REPOS"))
 )
 
 func IncomingRequestHandler(w http.ResponseWriter, r *http.Request) {
@@ -111,11 +113,15 @@ func IncomingRequestHandler(w http.ResponseWriter, r *http.Request) {
 	if event.ProjectV2Item != nil {
 		handleProjectV2Item(event)
 	}
-	if event.PullRequest != nil {
-		handlePullRequest(event)
-	}
-	if event.Issue != nil {
-		handleIssue(event)
+	if event.Repository != nil && skipRepos.Skips(event.Repository.FullName) {
+		fmt.Printf("Skipping event from %s\n", event.Repository.FullName)
+	} else {
+		if event.PullRequest != nil {
+			handlePullRequest(event)
+		}
+		if event.Issue != nil {
+			handleIssue(event)
+		}
 	}
 
 	w.Write([]byte("OK"))
